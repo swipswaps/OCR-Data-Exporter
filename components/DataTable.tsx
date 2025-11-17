@@ -1,5 +1,6 @@
 import React from 'react';
-import { TableRow } from '../types';
+// FIX: Corrected import path for TableRow type.
+import { TableRow } from '../state/types';
 
 interface DataTableProps {
   data: TableRow[];

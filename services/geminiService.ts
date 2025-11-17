@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { TableRow } from "../types";
+import { TableRow } from "../state/types";
 
 const API_KEY = process.env.API_KEY;
 
@@ -9,19 +9,19 @@ if (!API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-export const extractTableDataFromImages = async (
-  images: { mimeType: string; data: string }[]
+export const extractDataFromImage = async (
+  image: { mimeType: string; data: string }
 ): Promise<TableRow[]> => {
   try {
-    const imageParts = images.map(image => ({
+    const imagePart = {
       inlineData: {
         mimeType: image.mimeType,
         data: image.data,
       },
-    }));
+    };
 
     const prompt = `
-      You are an expert data extraction AI. Your primary function is to analyze images of documents and convert them into structured JSON data.
+      You are an expert data extraction AI. Your primary function is to analyze an image of a document and convert it into structured JSON data.
 
       Analyze the image and first classify the document into one of the following types: 'table', 'receipt', 'structured_list', 'note', or 'other'.
 
@@ -67,7 +67,7 @@ export const extractTableDataFromImages = async (
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: { parts: [{ text: prompt }, ...imageParts] },
+      contents: { parts: [{ text: prompt }, imagePart] },
       config: {
         responseMimeType: "application/json",
       },
@@ -94,6 +94,6 @@ export const extractTableDataFromImages = async (
 
   } catch (error) {
     console.error("Error calling Gemini API:", error);
-    throw new Error("Failed to extract data from images. The API call failed.");
+    throw new Error("Failed to extract data from image. The API call failed.");
   }
 };

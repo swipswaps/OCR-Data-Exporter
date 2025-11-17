@@ -1,9 +1,14 @@
 // FIX: Import React to make the React namespace available for types like React.Dispatch.
 import React, { useCallback } from 'react';
 import { fileToBase64 } from '../utils/fileUtils';
-import { extractTableDataFromImages } from '../services/geminiService';
-import { AppAction } from '../state/types';
-import { TableRow } from '../types';
+import { extractDataFromImage } from '../services/geminiService';
+import { AppAction, ProgressLogEntry, TableRow } from '../state/types';
+
+const createLog = (message: string, type: ProgressLogEntry['type'] = 'info'): ProgressLogEntry => ({
+  time: new Date().toLocaleTimeString(),
+  message,
+  type,
+});
 
 export const useOcr = (dispatch: React.Dispatch<AppAction>) => {
   const processImages = useCallback(async (files: File[]) => {
@@ -17,64 +22,63 @@ export const useOcr = (dispatch: React.Dispatch<AppAction>) => {
 
     dispatch({ type: 'PROCESSING_START' });
 
-    try {
-      const promises = files.map(file => 
-        fileToBase64(file)
-          .then(base64Image => extractTableDataFromImages([base64Image]))
-          .then(data => ({ fileName: file.name, data }))
-          .catch(error => ({ fileName: file.name, error }))
-      );
+    const allData: TableRow[] = [];
+    let processingError = null;
 
-      const results = await Promise.all(promises);
+    for (const file of files) {
+      try {
+        dispatch({ type: 'ADD_PROGRESS_LOG', payload: createLog(`Starting to process "${file.name}"...`) });
+        dispatch({ type: 'SET_FILE_STATUS', payload: { fileName: file.name, status: 'processing' } });
 
-      const allData: TableRow[] = [];
-      const failedFiles: string[] = [];
-      
-      results.forEach(result => {
-        if ('data' in result && result.data && result.data.length > 0) {
-          const dataWithSource = result.data.map(row => ({ source_file: result.fileName, ...row }));
-          allData.push(...dataWithSource);
-        } else if ('error' in result) {
-          console.error(`Failed to process ${result.fileName}:`, result.error);
-          failedFiles.push(result.fileName);
-        }
-      });
-      
-      if (allData.length > 0) {
-        // De-duplicate based on all values in a row, ignoring source_file
-        const uniqueData = Array.from(new Map(allData.map(row => {
-          const { source_file, ...rest } = row;
-          return [JSON.stringify(rest), row];
-        })).values());
-
-        dispatch({ type: 'PROCESSING_SUCCESS', payload: uniqueData });
+        dispatch({ type: 'ADD_PROGRESS_LOG', payload: createLog(`Converting "${file.name}" to base64...`) });
+        const base64Image = await fileToBase64(file);
         
-        if (failedFiles.length > 0) {
-          dispatch({ 
-            type: 'SET_ERROR', 
-            payload: { type: 'warning', title: 'Partial success', message: `Data extracted, but failed to process ${failedFiles.length} file(s): ${failedFiles.join(', ')}.` } 
-          });
+        dispatch({ type: 'ADD_PROGRESS_LOG', payload: createLog(`Sending "${file.name}" to Gemini API for data extraction...`) });
+        const data = await extractDataFromImage(base64Image);
+        
+        if (data && data.length > 0) {
+          const dataWithSource = data.map(row => ({ source_file: file.name, ...row }));
+          allData.push(...dataWithSource);
+          dispatch({ type: 'ADD_PROGRESS_LOG', payload: createLog(`Successfully extracted ${data.length} row(s) from "${file.name}".`, 'success') });
+          dispatch({ type: 'SET_FILE_STATUS', payload: { fileName: file.name, status: 'success' } });
+        } else {
+          dispatch({ type: 'ADD_PROGRESS_LOG', payload: createLog(`No structured data found in "${file.name}".`, 'warning') });
+          dispatch({ type: 'SET_FILE_STATUS', payload: { fileName: file.name, status: 'success' } }); // Success, but no data
         }
-      } else if (failedFiles.length === files.length) {
-        dispatch({
-          type: 'PROCESSING_ERROR',
-          payload: { type: 'error', title: 'Processing failed', message: 'Failed to process all images. Please try again or check the console for details.' }
-        });
-      } else {
-        dispatch({
-          type: 'PROCESSING_ERROR',
-          payload: { type: 'info', title: 'No data found', message: 'No structured data could be extracted. The images might not contain recognizable tables, receipts, or notes.' }
-        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "An unknown error occurred.";
+        console.error(`Failed to process ${file.name}:`, err);
+        dispatch({ type: 'ADD_PROGRESS_LOG', payload: createLog(`Error processing "${file.name}": ${message}`, 'error') });
+        dispatch({ type: 'SET_FILE_STATUS', payload: { fileName: file.name, status: 'error' } });
+        if (!processingError) { // Keep the first error to show to the user
+          processingError = err;
+        }
       }
+    }
+    
+    // After processing all files
+    if (allData.length > 0) {
+      const uniqueData = Array.from(new Map(allData.map(row => {
+        const { source_file, ...rest } = row;
+        return [JSON.stringify(rest), row];
+      })).values());
+      
+      dispatch({ type: 'ADD_PROGRESS_LOG', payload: createLog(`De-duplication complete. Found ${uniqueData.length} unique rows.`, 'success') });
+      dispatch({ type: 'PROCESSING_SUCCESS', payload: uniqueData });
 
-    } catch (err) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : "An unknown error occurred during processing.";
+    } else if (processingError) {
+      const message = processingError instanceof Error ? processingError.message : "An unknown error occurred.";
+       dispatch({
+          type: 'PROCESSING_ERROR',
+          payload: { type: 'error', title: 'Processing Failed', message: `Could not extract data from any files. Last error: ${message}` }
+       });
+    } else {
       dispatch({
         type: 'PROCESSING_ERROR',
-        payload: { type: 'error', title: 'Error', message }
+        payload: { type: 'info', title: 'No Data Extracted', message: 'Finished processing, but no structured data could be extracted from the selected files.' }
       });
     }
+
   }, [dispatch]);
 
   return { processImages };

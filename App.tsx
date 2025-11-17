@@ -1,11 +1,9 @@
 import React, { useReducer } from 'react';
 import { Layout } from './components/Layout';
 import { FileUpload } from './components/FileUpload';
-import { DataTable } from './components/DataTable';
-import { ExportControls } from './components/ExportControls';
-import { Loader } from './components/Loader';
+import { Results } from './components/Results';
+import { ProcessingStatus } from './components/ProcessingStatus';
 import { Alert } from './components/Alert';
-import { Card } from './components/Card';
 import { useOcr } from './hooks/useOcr';
 import { initialState, reducer } from './state/reducer';
 
@@ -25,6 +23,33 @@ const App: React.FC = () => {
     dispatch({ type: 'RESET' });
   };
 
+  const renderContent = () => {
+    if (state.status === 'processing') {
+      return <ProcessingStatus files={state.files} log={state.progressLog} fileStatuses={state.fileStatuses} />;
+    }
+
+    if (state.view === 'results' && state.extractedData.length > 0) {
+      return <Results data={state.extractedData} headers={state.headers} onReset={handleReset} />;
+    }
+
+    return (
+      <div aria-live="polite">
+        <FileUpload 
+          onFilesSelected={handleFilesSelected} 
+          onProcess={handleProcess}
+          files={state.files}
+          fileStatuses={state.fileStatuses}
+          disabled={state.status === 'processing'}
+        />
+        {state.error && state.status !== 'processing' && (
+          <Alert type={state.error.type} title={state.error.title}>
+            {state.error.message}
+          </Alert>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Layout>
       <div className="text-center">
@@ -37,34 +62,7 @@ const App: React.FC = () => {
       </div>
 
       <div className="mt-10">
-        {state.view === 'upload' && (
-          <div aria-live="polite">
-            <FileUpload 
-              onFilesSelected={handleFilesSelected} 
-              onProcess={handleProcess}
-              files={state.files}
-            />
-          </div>
-        )}
-        
-        {state.status === 'processing' && (
-          <Card>
-            <Loader message="Extracting data... this may take a moment." />
-          </Card>
-        )}
-
-        {state.error && state.status !== 'processing' && (
-          <Alert type={state.error.type} title={state.error.title}>
-            {state.error.message}
-          </Alert>
-        )}
-
-        {state.view === 'results' && state.extractedData.length > 0 && (
-          <div className="space-y-8 fade-in">
-            <ExportControls data={state.extractedData} onReset={handleReset}/>
-            <DataTable data={state.extractedData} headers={state.headers} />
-          </div>
-        )}
+        {renderContent()}
       </div>
     </Layout>
   );

@@ -4,6 +4,8 @@ export const initialState: AppState = {
   view: 'upload',
   status: 'idle',
   files: [],
+  fileStatuses: {},
+  progressLog: [],
   extractedData: [],
   headers: [],
   error: null,
@@ -15,6 +17,10 @@ export function reducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         files: action.payload,
+        fileStatuses: action.payload.reduce((acc, file) => {
+          acc[file.name] = 'pending';
+          return acc;
+        }, {} as Record<string, 'pending'>),
         error: null,
       };
     case 'PROCESSING_START':
@@ -22,8 +28,22 @@ export function reducer(state: AppState, action: AppAction): AppState {
         ...state,
         status: 'processing',
         error: null,
+        progressLog: [],
         extractedData: [],
         headers: [],
+      };
+    case 'ADD_PROGRESS_LOG':
+      return {
+        ...state,
+        progressLog: [...state.progressLog, action.payload],
+      };
+    case 'SET_FILE_STATUS':
+      return {
+        ...state,
+        fileStatuses: {
+          ...state.fileStatuses,
+          [action.payload.fileName]: action.payload.status,
+        },
       };
     case 'PROCESSING_SUCCESS': {
       const allKeys = new Set(action.payload.flatMap(obj => Object.keys(obj)));
@@ -35,15 +55,17 @@ export function reducer(state: AppState, action: AppAction): AppState {
         status: 'success',
         extractedData: action.payload,
         headers: sortedHeaders,
-        files: [], // Clear files after successful processing
+        error: null,
       };
     }
     case 'PROCESSING_ERROR':
       return {
         ...state,
-        view: 'upload', // Go back to upload screen on error
+        view: 'upload',
         status: 'error',
         error: action.payload,
+        files: [],
+        fileStatuses: {},
       };
     case 'SET_ERROR':
       return {

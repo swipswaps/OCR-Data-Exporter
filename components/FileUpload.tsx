@@ -2,11 +2,14 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { getDisplayUrl } from '../utils/fileUtils';
 import { Button } from './Button';
 import { Card } from './Card';
+import { FileStatus } from '../state/types';
 
 interface FileUploadProps {
   onFilesSelected: (files: File[]) => void;
   onProcess: () => void;
   files: File[];
+  fileStatuses: Record<string, FileStatus>;
+  disabled: boolean;
 }
 
 const UploadIcon = () => (
@@ -15,7 +18,20 @@ const UploadIcon = () => (
     </svg>
 );
 
-export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, onProcess, files }) => {
+const StatusIcon: React.FC<{ status: FileStatus }> = ({ status }) => {
+    switch (status) {
+        case 'processing':
+            return <div title="Processing..." className="w-4 h-4 rounded-full animate-spin border-2 border-dashed border-white border-t-transparent"></div>;
+        case 'success':
+            return <svg title="Success" className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>;
+        case 'error':
+            return <svg title="Error" className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"></path></svg>;
+        default:
+            return null;
+    }
+};
+
+export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, onProcess, files, fileStatuses, disabled }) => {
     const [isDragging, setIsDragging] = useState(false);
     const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
 
@@ -52,7 +68,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, onProce
             }
         };
 
-        generatePreviews();
+        if (files.length > 0) {
+            generatePreviews();
+        } else {
+            setPreviewUrls({});
+        }
         
         return () => {
             isCancelled = true;
@@ -61,7 +81,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, onProce
     
     useEffect(() => {
         return () => {
-            Object.values(previewUrls).forEach(url => URL.revokeObjectURL(url));
+            // FIX: Address potential type inference issue by iterating over keys instead of values.
+            // This ensures we're passing a string to URL.revokeObjectURL.
+            for (const key in previewUrls) {
+                if (Object.prototype.hasOwnProperty.call(previewUrls, key)) {
+                    URL.revokeObjectURL(previewUrls[key]);
+                }
+            }
         }
     }, []);
 
@@ -73,25 +99,28 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, onProce
     };
 
     const handleDragEvent = useCallback((event: React.DragEvent<HTMLElement>, dragging: boolean) => {
+        if (disabled) return;
         event.preventDefault();
         event.stopPropagation();
         setIsDragging(dragging);
-    }, []);
+    }, [disabled]);
 
     const handleDrop = useCallback((event: React.DragEvent<HTMLElement>) => {
+        if (disabled) return;
         handleDragEvent(event, false);
         if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
             onFilesSelected(Array.from(event.dataTransfer.files));
             event.dataTransfer.clearData();
         }
-    }, [handleDragEvent, onFilesSelected]);
+    }, [handleDragEvent, onFilesSelected, disabled]);
 
     return (
         <Card>
             <div className="flex flex-col items-center justify-center w-full">
                 <label
                     htmlFor="dropzone-file"
-                    className={`flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer transition-colors
+                    className={`flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg transition-colors
+                        ${disabled ? 'cursor-not-allowed bg-slate-100 dark:bg-slate-800/50' : 'cursor-pointer'}
                         ${isDragging ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
                     onDragEnter={(e) => handleDragEvent(e, true)}
                     onDragLeave={(e) => handleDragEvent(e, false)}
@@ -105,7 +134,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, onProce
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">PNG, JPG, HEIC, etc.</p>
                     </div>
-                    <input id="dropzone-file" type="file" className="hidden" multiple accept="image/*,.heic,.heif" onChange={handleFileChange} />
+                    <input id="dropzone-file" type="file" className="hidden" multiple accept="image/*,.heic,.heif" onChange={handleFileChange} disabled={disabled} />
                 </label>
 
                 {files.length > 0 && (
@@ -119,13 +148,17 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, onProce
                                     ) : (
                                         <div className="flex items-center justify-center w-full h-full text-xs text-slate-500">Loading...</div>
                                     )}
-                                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1.5 truncate backdrop-blur-sm">{file.name}</div>
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1.5 truncate backdrop-blur-sm flex justify-between items-center">
+                                      <span className="truncate">{file.name}</span>
+                                      {fileStatuses[file.name] && <StatusIcon status={fileStatuses[file.name]} />}
+                                    </div>
                                 </div>
                             ))}
                         </div>
                         <Button
                             onClick={onProcess}
                             className="mt-8 w-full"
+                            disabled={disabled}
                         >
                             Extract Data from {files.length} File(s)
                         </Button>
