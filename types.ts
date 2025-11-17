@@ -1,0 +1,2 @@
+
+export type TableRow = Record<string, any>;

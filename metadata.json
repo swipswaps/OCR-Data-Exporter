@@ -1,0 +1,5 @@
+{
+  "name": "OCR Data Exporter",
+  "description": "An advanced OCR tool that extracts tabular data from images of printed material and exports it to various formats like JSON, CSV, XLSX, or SQL. Powered by the Gemini API for high accuracy.",
+  "requestFramePermissions": []
+}
