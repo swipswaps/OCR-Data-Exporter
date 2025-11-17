@@ -14,11 +14,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data, headers }) => {
   return (
     <div className="bg-white dark:bg-slate-800/50 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-          <thead className="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-slate-700 dark:text-gray-300">
+        <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
+          <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
             <tr>
               {headers.map((header) => (
-                <th key={header} scope="col" className="px-6 py-3 whitespace-nowrap">
+                <th key={header} scope="col" className="px-6 py-4 font-semibold tracking-wider whitespace-nowrap">
                   {header.replace(/_/g, ' ')}
                 </th>
               ))}
@@ -26,10 +26,10 @@ export const DataTable: React.FC<DataTableProps> = ({ data, headers }) => {
           </thead>
           <tbody>
             {data.map((row, rowIndex) => (
-              <tr key={rowIndex} className="bg-white dark:bg-slate-800 border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600/50">
+              <tr key={rowIndex} className="bg-white dark:bg-slate-800 border-b dark:border-slate-700 last:border-b-0 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                 {headers.map((header) => (
                   <td key={`${rowIndex}-${header}`} className="px-6 py-4">
-                    {String(row[header] ?? '')}
+                    {row[header] === null || row[header] === undefined ? <span className="text-slate-400 dark:text-slate-500">—</span> : String(row[header])}
                   </td>
                 ))}
               </tr>

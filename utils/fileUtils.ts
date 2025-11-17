@@ -23,21 +23,20 @@ const convertHeicToJpg = (file: File): Promise<File> => {
 /**
  * Creates a temporary local URL for displaying a file, converting HEIC/HEIF if necessary.
  */
-export const getDisplayUrl = (file: File): Promise<string> => {
-    return new Promise(async (resolve, reject) => {
-        try {
-            const fileNameLower = file.name.toLowerCase();
-            if (file.type === 'image/heic' || file.type === 'image/heif' || fileNameLower.endsWith('.heic') || fileNameLower.endsWith('.heif')) {
-                const convertedFile = await convertHeicToJpg(file);
-                resolve(URL.createObjectURL(convertedFile));
-            } else {
-                resolve(URL.createObjectURL(file));
-            }
-        } catch (error) {
-            console.error("Error creating display URL:", error);
-            reject(error);
+// FIX: Refactored to a standard async function to avoid the `new Promise` anti-pattern with an async executor.
+export const getDisplayUrl = async (file: File): Promise<string> => {
+    try {
+        const fileNameLower = file.name.toLowerCase();
+        if (file.type === 'image/heic' || file.type === 'image/heif' || fileNameLower.endsWith('.heic') || fileNameLower.endsWith('.heif')) {
+            const convertedFile = await convertHeicToJpg(file);
+            return URL.createObjectURL(convertedFile);
+        } else {
+            return URL.createObjectURL(file);
         }
-    });
+    } catch (error) {
+        console.error("Error creating display URL:", error);
+        throw error;
+    }
 };
 
 /**

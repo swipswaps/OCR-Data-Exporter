@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
+import { Logo } from './Logo';
 
 const SunIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m4.93 19.07 1.41-1.41" /><path d="m17.66 6.34 1.41-1.41" /></svg>
 );
 
 const MoonIcon = () => (
@@ -37,11 +37,9 @@ export const Header: React.FC = () => {
         <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm sticky top-0 z-40 border-b border-slate-200 dark:border-slate-800">
             <div className="container mx-auto px-4">
                 <div className="flex justify-between items-center h-16">
-                    <div className="flex items-center space-x-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-primary-600" viewBox="0 0 20 20" fill="currentColor">
-                           <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                        </svg>
-                        <span className="text-xl font-bold text-slate-800 dark:text-slate-200">OCR Exporter</span>
+                    <div className="flex items-center space-x-3">
+                        <Logo className="h-7 w-7 text-primary-600" />
+                        <span className="text-xl font-bold text-slate-800 dark:text-slate-200 tracking-tight">AI Data Extractor</span>
                     </div>
                     <button
                         onClick={toggleDarkMode}
